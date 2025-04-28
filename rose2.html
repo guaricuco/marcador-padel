@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Marcador Pádel</title>
+  <style>
+    /* Global */
+    *, *::before, *::after { box-sizing: border-box; }
+    body { font-family: sans-serif; margin: 1rem; }
+
+    /* Header */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      max-width: 1000px;
+      margin: 0 auto 1rem;
+      padding: 0 1rem;
+    }
+    #title-group { display: flex; align-items: center; flex: 1 1 auto; }
+    #logo { height: 120px; margin-right: 15px; }
+    h1 { font-family: 'Comic Sans MS', 'Comic Sans', cursive; font-size: 3rem; margin: 0; }
+    #datetime { font-size: 1.2rem; flex: 0 0 auto; }
+
+    /* Timer and controls */
+    #timer { font-size: 4rem; text-align: center; margin: 1rem 0; }
+    #controls button,
+    #addPairBtn,
+    .pair button {
+      font-size: 1.2rem;
+      margin: 0.3rem;
+      padding: 0.5rem 1rem;
+      cursor: pointer;
+    }
+
+    /* Pairs */
+    #pairsContainer {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 1rem;
+      margin: 2rem 0;
+      padding: 0 1rem;
+    }
+    .pair {
+      flex: 1 1 200px;
+      max-width: 300px;
+      border: 1px solid #ccc;
+      padding: 1rem;
+      border-radius: 8px;
+      box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
+    }
+    .pair input {
+      font-size: 1.5rem;
+      text-align: center;
+      width: 100%;
+      border: none;
+      border-bottom: 1px solid #888;
+      margin-bottom: 0.5rem;
+    }
+    .score-display {
+      font-size: 2rem;
+      margin: 0.5rem 0;
+    }
+
+    /* Winner */
+    #winner {
+      font-size: 1.8rem;
+      margin-top: 1rem;
+      font-weight: bold;
+      text-align: center;
+    }
+
+    /* Responsive for iPhone/Safari */
+    @media (max-width: 600px) {
+      h1 { font-size: 2rem; }
+      #timer { font-size: 3rem; }
+      #controls button,
+      #addPairBtn,
+      .pair button { font-size: 1rem; padding: 0.4rem 0.8rem; }
+      header { padding: 0; }
+      #datetime { margin-top: 0.5rem; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div id="title-group">
+      <img src="logo.png" alt="Logo" id="logo">
+      <h1>Marcador Pádel</h1>
+    </div>
+    <div id="datetime">--/--/---- --:-- --</div>
+  </header>
+
+  <div id="timer">00:00</div>
+  <div id="controls" style="text-align: center;">
+    <button id="start">Iniciar</button>
+    <button id="stop">Pausa</button>
+    <button id="reset">Reiniciar</button>
+  </div>
+
+  <div style="text-align: center; margin-top: 1rem;">
+    <button id="addPairBtn">➕ Agregar Pareja</button>
+  </div>
+  <div id="pairsContainer"></div>
+
+  <div id="winner">Ganadora: –</div>
+
+  <script>
+    // Fecha y hora legal de Chile
+    function updateDateTime() {
+      const now = new Date();
+      const optsTime = { timeZone: 'America/Santiago', hour12: true, hour: '2-digit', minute: '2-digit' };
+      const optsDate = { timeZone: 'America/Santiago', day: '2-digit', month: '2-digit', year: 'numeric' };
+      const time = now.toLocaleTimeString('en-US', optsTime);
+      const date = now.toLocaleDateString('es-CL', optsDate);
+      document.getElementById('datetime').textContent = `${date} ${time}`;
+    }
+    updateDateTime();
+    setInterval(updateDateTime, 60000);
+
+    // Temporizador
+    let sec = 0, timerInterval = null;
+    function displayTime() {
+      const m = String(Math.floor(sec/60)).padStart(2,'0');
+      const s = String(sec%60).padStart(2,'0');
+      document.getElementById('timer').textContent = `${m}:${s}`;
+    }
+    document.getElementById('start').onclick = () => {
+      if (timerInterval) return;
+      timerInterval = setInterval(() => { sec++; displayTime(); }, 1000);
+    };
+    document.getElementById('stop').onclick = () => {
+      clearInterval(timerInterval); timerInterval = null;
+    };
+    document.getElementById('reset').onclick = () => {
+      clearInterval(timerInterval); timerInterval = null;
+      sec = 0; displayTime();
+    };
+
+    // Gestión de parejas
+    let pairCount = 0;
+    const pairsContainer = document.getElementById('pairsContainer');
+
+    function addPair(initialName = `Pareja ${pairCount+1}`) {
+      pairCount++;
+      const id = pairCount;
+      const div = document.createElement('div');
+      div.className = 'pair';
+      div.dataset.id = id;
+
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.value = initialName;
+      input.placeholder = 'Nombre Pareja';
+      div.appendChild(input);
+
+      const span = document.createElement('div');
+      span.id = `score${id}`;
+      span.className = 'score-display';
+      span.textContent = '0';
+      div.appendChild(span);
+
+      const btnPlus = document.createElement('button');
+      btnPlus.textContent = '+1';
+      btnPlus.onclick = () => changeScore(id, +1);
+      div.appendChild(btnPlus);
+
+      const btnMinus = document.createElement('button');
+      btnMinus.textContent = '–1';
+      btnMinus.onclick = () => changeScore(id, -1);
+      div.appendChild(btnMinus);
+
+      pairsContainer.appendChild(div);
+      updateWinner();
+    }
+
+    document.getElementById('addPairBtn').onclick = () => addPair();
+
+    function changeScore(id, delta) {
+      const el = document.getElementById(`score${id}`);
+      let val = Number(el.textContent) + delta;
+      el.textContent = val < 0 ? 0 : val;
+      updateWinner();
+    }
+
+    // Cálculo de ganadora
+    function updateWinner() {
+      const bloques = document.querySelectorAll('.pair');
+      let max = -1, winners = [];
+      bloques.forEach(b => {
+        const name = b.querySelector('input').value.trim() || '–';
+        const score = Number(b.querySelector('.score-display').textContent);
+        if (score > max) {
+          max = score; winners = [{name, score}];
+        } else if (score === max) {
+          winners.push({name, score});
+        }
+      });
+      const winDiv = document.getElementById('winner');
+      if (max <= 0 || winners.length === bloques.length) {
+        winDiv.textContent = 'Ganadora: –';
+      } else if (winners.length === 1) {
+        winDiv.textContent = `Ganadora: ${winners[0].name} con ${winners[0].score} puntos`;
+      } else {
+        const names = winners.map(w=>w.name).join(' y ');
+        winDiv.textContent = `Empate: ${names} (${max} pts)`;
+      }
+    }
+
+    // Inicializamos con dos parejas
+    addPair('Pareja A');
+    addPair('Pareja B');
+  </script>
+</body>
+</html>
